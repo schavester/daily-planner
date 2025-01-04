@@ -1,0 +1,36 @@
+name: Generate Issues JSON
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight
+
+jobs:
+  generate-json:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Fetch Issues
+      id: get-issues
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const response = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open'
+          });
+          return response.data.map(issue => ({ title: issue.title, url: issue.html_url }));
+
+    - name: Write JSON File
+      run: echo '${{ toJSON(steps.get-issues.outputs.result) }}' > issue-titles.json
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./
+        publish_branch: gh-pages # The branch GitHub Pages uses
+        keep_files: true 
